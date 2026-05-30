@@ -22,7 +22,12 @@ import {
   ShieldCheck,
   Cpu,
   RefreshCw,
-  Info
+  Info,
+  Server,
+  Code,
+  Clock,
+  FileCode,
+  ExternalLink
 } from 'lucide-react';
 import './App.css';
 
@@ -64,7 +69,7 @@ export default function App() {
   const [report, setReport] = useState('');
   const [feedback, setFeedback] = useState('');
   
-  const [activeTab, setActiveTab] = useState('report');
+  const [activeTab, setActiveTab] = useState('workflow');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   
@@ -81,6 +86,14 @@ export default function App() {
     if (!feedback) return null;
     const match = feedback.match(/Score:\s*([0-9.]+)\/10/i);
     return match ? parseFloat(match[1]) : null;
+  };
+
+  // Get score color
+  const getScoreColorClass = (score) => {
+    if (score === null) return 'hsl(var(--primary))';
+    if (score >= 7.5) return 'hsl(var(--success))';
+    if (score >= 5.5) return 'hsl(var(--warning))';
+    return 'hsl(var(--error))';
   };
 
   // Extract verdict (format: "One line verdict:\n...")
@@ -106,6 +119,17 @@ export default function App() {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  };
+
+  // Document metrics calculations
+  const getWordCount = () => {
+    if (!report) return 0;
+    return report.split(/\s+/).filter(Boolean).length;
+  };
+
+  const getReadingTime = () => {
+    const count = getWordCount();
+    return Math.max(1, Math.ceil(count / 200)); // 200 Words Per Minute
   };
 
   const validateApiKey = async (e) => {
@@ -171,7 +195,7 @@ export default function App() {
     setScrapedContent('');
     setReport('');
     setFeedback('');
-    setActiveTab('report');
+    setActiveTab('workflow');
     setStepMessages({
       1: 'Search agent initializing...',
       2: 'Waiting...',
@@ -228,16 +252,12 @@ export default function App() {
                 });
               } else if (event.type === 'search_results') {
                 setSearchResults(ensureString(event.data));
-                setActiveTab('search');
               } else if (event.type === 'scraped_content') {
                 setScrapedContent(ensureString(event.data));
-                setActiveTab('scrape');
               } else if (event.type === 'report') {
                 setReport(ensureString(event.data));
-                setActiveTab('report');
               } else if (event.type === 'feedback') {
                 setFeedback(ensureString(event.data));
-                setActiveTab('critic');
               } else if (event.type === 'complete') {
                 setCurrentStep(5);
                 setStepMessages({
@@ -247,6 +267,8 @@ export default function App() {
                   4: 'Completed successfully'
                 });
                 setIsRunning(false);
+                // When complete, switch to final report to present findings
+                setActiveTab('report');
               } else if (event.type === 'error') {
                 setError(event.message);
                 setIsRunning(false);
@@ -261,6 +283,24 @@ export default function App() {
       setError(err.message || 'A network error occurred. Is the backend running?');
       setIsRunning(false);
     }
+  };
+
+  // Interactive Node Navigation Handler
+  const handleNodeClick = (nodeId) => {
+    if (nodeId === 'search' && searchResults) setActiveTab('search');
+    else if ((nodeId === 'scraper' || nodeId === 'selector') && scrapedContent) setActiveTab('scrape');
+    else if ((nodeId === 'writer' || nodeId === 'aggregator' || nodeId === 'output') && report) setActiveTab('report');
+    else if (nodeId === 'critic' && feedback) setActiveTab('critic');
+    else setActiveTab('workflow');
+  };
+
+  // Inspect indicator text for active/completed nodes
+  const getNodeInspectLabel = (nodeId) => {
+    if (nodeId === 'search' && searchResults) return 'View Hits';
+    if ((nodeId === 'scraper' || nodeId === 'selector') && scrapedContent) return 'View Context';
+    if ((nodeId === 'writer' || nodeId === 'aggregator' || nodeId === 'output') && report) return 'View Report';
+    if (nodeId === 'critic' && feedback) return 'View Review';
+    return null;
   };
 
   // Basic HTML markdown formatter for premium output rendering
@@ -294,6 +334,7 @@ export default function App() {
 
   const parsedScore = getScore();
   const verdictText = getVerdict();
+  const scoreColor = getScoreColorClass(parsedScore);
 
   return (
     <div className="app-container">
@@ -428,15 +469,17 @@ export default function App() {
             </h3>
             
             <form onSubmit={startResearch} className="search-form">
-              <div className="input-wrapper">
+              <div className="input-wrapper search-bar-wrapper">
+                <Search size={18} className="search-bar-icon" />
                 <input 
                   type="text"
                   placeholder="Enter a deep research topic..."
-                  className="search-input"
+                  className="search-input search-bar-input"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   disabled={isRunning || !isKeyValid}
                 />
+                <kbd className="keyboard-shortcut-badge">↵ Enter</kbd>
               </div>
               <button 
                 type="submit" 
@@ -471,49 +514,149 @@ export default function App() {
               </div>
             )}
 
-            {/* Agent progress timeline */}
-            <div className="agent-flow">
-              {/* Step 1: Search Agent */}
-              <div className={`agent-step ${currentStep === 1 ? 'active' : ''} ${currentStep > 1 ? 'completed' : ''}`}>
-                <div className="agent-node">
-                  {currentStep > 1 ? <CheckCircle2 size={14} /> : <Search size={14} />}
-                </div>
-                <div className="agent-info">
-                  <span className="agent-name">Search Agent</span>
-                  <span className="agent-description">{stepMessages[1]}</span>
+            {/* Suggested topics - visible when idle */}
+            {!isRunning && (
+              <div className="suggested-topics">
+                <span className="text-xs uppercase tracking-wider text-muted font-bold block mb-3 flex items-center gap-2">
+                  <TrendingUp size={14} className="text-primary" />
+                  Suggested Investigations
+                </span>
+                <div className="flex flex-col gap-2">
+                  <button 
+                    type="button"
+                    className="topic-chip"
+                    onClick={() => { setTopic('devops in 2026'); setError(''); }}
+                    disabled={isRunning}
+                  >
+                    <Cpu size={13} className="text-fuchsia-400 text-accent glow-icon" />
+                    DevOps trends in 2026
+                  </button>
+                  <button 
+                    type="button"
+                    className="topic-chip"
+                    onClick={() => { setTopic('ai agents evolution in 2026'); setError(''); }}
+                    disabled={isRunning}
+                  >
+                    <RefreshCw size={13} className="text-cyan-400 text-secondary glow-icon-cyan" />
+                    AI Agent evolution in 2026
+                  </button>
+                  <button 
+                    type="button"
+                    className="topic-chip"
+                    onClick={() => { setTopic('quantum computing breakthroughs 2026'); setError(''); }}
+                    disabled={isRunning}
+                  >
+                    <Compass size={13} className="text-amber-400 glow-icon-amber" />
+                    Quantum Computing in 2026
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* Step 2: Reader Scraper */}
-              <div className={`agent-step ${currentStep === 2 ? 'active' : ''} ${currentStep > 2 ? 'completed' : ''}`}>
-                <div className="agent-node">
-                  {currentStep > 2 ? <CheckCircle2 size={14} /> : <Compass size={14} />}
+            {/* Live Terminal Console - visible when running */}
+            {isRunning && (
+              <div className="live-terminal mt-6">
+                <div className="terminal-header">
+                  <div className="terminal-dots">
+                    <span className="dot red"></span>
+                    <span className="dot yellow"></span>
+                    <span className="dot green"></span>
+                  </div>
+                  <span className="terminal-title">research_director.log</span>
                 </div>
-                <div className="agent-info">
-                  <span className="agent-name">Web Scraper Agent</span>
-                  <span className="agent-description">{stepMessages[2]}</span>
+                <div className="terminal-body">
+                  <div className="terminal-line system">
+                    <span className="time">[SYS]</span> Collaborative Multi-Agent suite initialized.
+                  </div>
+                  {currentStep >= 1 && (
+                    <div className="terminal-line active">
+                      <span className="time">[AGENT]</span> search: Initiating parallel Tavily index queries...
+                    </div>
+                  )}
+                  {currentStep > 1 && (
+                    <div className="terminal-line success">
+                      <span className="time">[SUCCESS]</span> search: 5 authoritative URLs compiled successfully.
+                    </div>
+                  )}
+                  {currentStep >= 2 && (
+                    <div className="terminal-line active">
+                      <span className="time">[AGENT]</span> scraper: Selecting top domain and extracting core DOM...
+                    </div>
+                  )}
+                  {currentStep > 2 && (
+                    <div className="terminal-line success">
+                      <span className="time">[SUCCESS]</span> scraper: Web content strip and parsed successfully.
+                    </div>
+                  )}
+                  {currentStep >= 3 && (
+                    <div className="terminal-line active">
+                      <span className="time">[AGENT]</span> writer: Synthesizing context and drafting Markdown paper...
+                    </div>
+                  )}
+                  {currentStep > 3 && (
+                    <div className="terminal-line success">
+                      <span className="time">[SUCCESS]</span> writer: Standardized research draft written (3000 chars).
+                    </div>
+                  )}
+                  {currentStep >= 4 && (
+                    <div className="terminal-line active">
+                      <span className="time">[AGENT]</span> critic: Submitting draft to Review Specialist...
+                    </div>
+                  )}
+                  {currentStep > 4 && (
+                    <div className="terminal-line success">
+                      <span className="time">[SUCCESS]</span> critic: Peer review rating and critique computed!
+                    </div>
+                  )}
+                  {currentStep === 5 && (
+                    <div className="terminal-line complete">
+                      <span className="time">[SYS]</span> Pipeline finished successfully. Connection closed.
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
 
-              {/* Step 3: Writer Chain */}
-              <div className={`agent-step ${currentStep === 3 ? 'active' : ''} ${currentStep > 3 ? 'completed' : ''}`}>
-                <div className="agent-node">
-                  {currentStep > 3 ? <CheckCircle2 size={14} /> : <BookOpen size={14} />}
+            {/* System Diagnostics Panel - always useful */}
+            <div className="diagnostics-panel">
+              <span className="text-xs uppercase tracking-wider text-muted font-bold block mb-4 flex items-center justify-between w-full">
+                <span className="flex items-center gap-2">
+                  <Server size={14} className="text-cyan-400" />
+                  System Diagnostics
+                </span>
+                <span className="telemetry-live-pill">
+                  <span className="pulse-telemetry-dot"></span>
+                  LIVE TELEMETRY
+                </span>
+              </span>
+              <div className="diag-grid">
+                <div className="diag-item model-diag">
+                  <div className="diag-header flex items-center justify-between w-full">
+                    <span className="label">Agent Model</span>
+                    <Cpu size={12} className="diag-icon text-primary-icon" />
+                  </div>
+                  <span className="val text-primary font-bold">mistral-small</span>
                 </div>
-                <div className="agent-info">
-                  <span className="agent-name">Writer Specialist</span>
-                  <span className="agent-description">{stepMessages[3]}</span>
+                <div className="diag-item temp-diag">
+                  <div className="diag-header flex items-center justify-between w-full">
+                    <span className="label">Temperature</span>
+                    <Clock size={12} className="diag-icon text-amber-icon" />
+                  </div>
+                  <span className="val text-amber-val">0.3</span>
                 </div>
-              </div>
-
-              {/* Step 4: Critic Chain */}
-              <div className={`agent-step ${currentStep === 4 ? 'active' : ''} ${currentStep > 4 ? 'completed' : ''}`}>
-                <div className="agent-node">
-                  {currentStep > 4 ? <CheckCircle2 size={14} /> : <FileText size={14} />}
+                <div className="diag-item search-diag">
+                  <div className="diag-header flex items-center justify-between w-full">
+                    <span className="label">Search Engine</span>
+                    <Search size={12} className="diag-icon text-cyan-icon" />
+                  </div>
+                  <span className="val text-cyan-val">Tavily API</span>
                 </div>
-                <div className="agent-info">
-                  <span className="agent-name">Peer Review Critic</span>
-                  <span className="agent-description">{stepMessages[4]}</span>
+                <div className="diag-item crawler-diag">
+                  <div className="diag-header flex items-center justify-between w-full">
+                    <span className="label">Crawler Tool</span>
+                    <Code size={12} className="diag-icon text-emerald-icon" />
+                  </div>
+                  <span className="val text-emerald-val">BeautifulSoup4</span>
                 </div>
               </div>
             </div>
@@ -522,109 +665,261 @@ export default function App() {
 
         {/* Right column: Tabs & Display panels */}
         <div className="glass-card">
-          {!searchResults && !report && !isRunning ? (
-            <div className="empty-state">
-              <div className="empty-icon">
-                <Cpu className="spin-slow" size={32} />
-              </div>
-              <h3>Collaborative Agentic Core</h3>
-              <p className="mb-6">
-                Welcome to ResearchOS. Once your API key is validated, submit a topic and our multi-agent core will activate.
-              </p>
-              
-              <div className="flex flex-col gap-3 text-left w-full max-w-md mx-auto" style={{ fontSize: '13px', color: 'hsl(var(--text-secondary))' }}>
-                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
-                  <Search size={16} className="text-cyan-400 shrink-0" />
-                  <span><strong>Search Agent</strong> finds recent, authoritative web sources using Tavily.</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
-                  <Compass size={16} className="text-emerald-400 shrink-0" />
-                  <span><strong>Scraper Agent</strong> extracts clean, relevant text content out of target URLs.</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
-                  <BookOpen size={16} className="text-purple-400 shrink-0" />
-                  <span><strong>Writer Specialist</strong> organizes discoveries into an exhaustive structured report.</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
-                  <FileText size={16} className="text-pink-400 shrink-0" />
-                  <span><strong>Critic Critic</strong> evaluates the report, calculating a rating out of 10.</span>
-                </div>
-              </div>
+          <div className="tabs-container">
+            {/* Tab selector buttons */}
+            <div className="tabs-header">
+              <button 
+                onClick={() => setActiveTab('workflow')}
+                className={`tab-btn ${activeTab === 'workflow' ? 'active' : ''}`}
+              >
+                <Cpu size={16} />
+                Execution Flow
+              </button>
+              {searchResults && (
+                <button 
+                  onClick={() => setActiveTab('search')}
+                  className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
+                >
+                  <Search size={16} />
+                  Search Discoveries
+                </button>
+              )}
+              {scrapedContent && (
+                <button 
+                  onClick={() => setActiveTab('scrape')}
+                  className={`tab-btn ${activeTab === 'scrape' ? 'active' : ''}`}
+                >
+                  <Compass size={16} />
+                  Scraped Context
+                </button>
+              )}
+              {report && (
+                <button 
+                  onClick={() => setActiveTab('report')}
+                  className={`tab-btn ${activeTab === 'report' ? 'active' : ''}`}
+                >
+                  <BookOpen size={16} />
+                  Research Report
+                </button>
+              )}
+              {feedback && (
+                <button 
+                  onClick={() => setActiveTab('critic')}
+                  className={`tab-btn ${activeTab === 'critic' ? 'active' : ''}`}
+                >
+                  <FileText size={16} />
+                  Critic Feedback
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="tabs-container">
-              {/* Tab selector buttons */}
-              <div className="tabs-header">
-                {searchResults && (
-                  <button 
-                    onClick={() => setActiveTab('search')}
-                    className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
-                  >
-                    <Search size={16} />
-                    Search Discoveries
-                  </button>
-                )}
-                {scrapedContent && (
-                  <button 
-                    onClick={() => setActiveTab('scrape')}
-                    className={`tab-btn ${activeTab === 'scrape' ? 'active' : ''}`}
-                  >
-                    <Compass size={16} />
-                    Scraped Context
-                  </button>
-                )}
-                {report && (
-                  <button 
-                    onClick={() => setActiveTab('report')}
-                    className={`tab-btn ${activeTab === 'report' ? 'active' : ''}`}
-                  >
-                    <BookOpen size={16} />
-                    Research Report
-                  </button>
-                )}
-                {feedback && (
-                  <button 
-                    onClick={() => setActiveTab('critic')}
-                    className={`tab-btn ${activeTab === 'critic' ? 'active' : ''}`}
-                  >
-                    <FileText size={16} />
-                    Critic Feedback
-                  </button>
-                )}
+
+            {/* Execution Flow Tab - The glowing n8n diagram! */}
+            {activeTab === 'workflow' && (
+              <div className="tab-pane">
+                <h4 className="text-lg font-bold flex items-center gap-2">
+                  <Cpu size={16} className="text-purple-400" />
+                  Agentic Workflow Canvas
+                </h4>
+                <p className="text-xs text-muted">
+                  Below is the live collaborative schema of ResearchOS. Watch the active nodes glow and data streams pulse as agents execute their specific steps. 
+                  <strong style={{ color: 'hsl(var(--primary))', marginLeft: '4px' }}>Pro-Tip: Click completed nodes to jump straight to their logs/results!</strong>
+                </p>
+                
+                <div className="workflow-canvas">
+                  <div className="workflow-grid">
+                    {/* Row 1 (Flows Left to Right) */}
+                    {/* Row 1 (Flows Left to Right) */}
+                    {/* Node 1: Trigger */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node trigger-node completed clickable-node`}
+                        onClick={() => handleNodeClick('trigger')}
+                      >
+                        <div className="workflow-node-icon"><Terminal size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Workflow Start</h4>
+                          <p>Topic Submitted</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-right ${currentStep >= 1 ? 'active' : ''}`}></div>
+                    </div>
+
+                    {/* Node 2: Search Agent */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node search-node ${currentStep === 1 ? 'active' : ''} ${currentStep > 1 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('search')}
+                      >
+                        {currentStep > 1 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><Search size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Search Agent</h4>
+                          <p>Tavily Search API</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-right ${currentStep >= 2 ? 'active' : ''}`}></div>
+                    </div>
+
+                    {/* Node 3: URL Selector */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node selector-node ${currentStep === 2 ? 'active' : ''} ${currentStep > 2 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('selector')}
+                      >
+                        {currentStep > 2 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><Compass size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>URL Selector</h4>
+                          <p>Relevance Scoring</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-right ${currentStep >= 2 ? 'active' : ''}`}></div>
+                    </div>
+
+                    {/* Node 4: Web Scraper */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node scraper-node ${currentStep === 2 ? 'active' : ''} ${currentStep > 2 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('scraper')}
+                      >
+                        {currentStep > 2 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><Code size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Web Scraper</h4>
+                          <p>BS4 DOM Parser</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-down ${currentStep >= 3 ? 'active' : ''}`}></div>
+                    </div>
+
+                    {/* Row 2 (Flows Right to Left) */}
+                    {/* Node 8: Final Output */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node output-node ${currentStep === 5 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('output')}
+                      >
+                        {currentStep === 5 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><CheckCircle2 size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Research Output</h4>
+                          <p>Final Markdown Paper</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Node 7: Review Critic */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node critic-node ${currentStep === 4 ? 'active' : ''} ${currentStep > 4 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('critic')}
+                      >
+                        {currentStep > 4 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><FileText size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Review Critic</h4>
+                          <p>Score & Audit</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-left ${currentStep >= 5 ? 'active' : ''}`}></div>
+                    </div>
+
+                    {/* Node 6: Writer Specialist */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node writer-node ${currentStep === 3 ? 'active' : ''} ${currentStep > 3 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('writer')}
+                      >
+                        {currentStep > 3 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><BookOpen size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Writer Specialist</h4>
+                          <p>Mistral Compiler</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-left ${currentStep >= 4 ? 'active' : ''}`}></div>
+                    </div>
+
+                    {/* Node 5: Knowledge Aggregator */}
+                    <div className="workflow-node-wrapper">
+                      <div 
+                        className={`workflow-node aggregator-node ${currentStep === 3 ? 'active' : ''} ${currentStep > 3 ? 'completed clickable-node' : ''}`}
+                        onClick={() => handleNodeClick('aggregator')}
+                      >
+                        {currentStep > 3 && <span className="inspect-pill">View</span>}
+                        <div className="workflow-node-icon"><Server size={18} /></div>
+                        <div className="workflow-node-text">
+                          <h4>Context Aggregator</h4>
+                          <p>Synthesizer</p>
+                        </div>
+                      </div>
+                      <div className={`flow-line flow-line-left ${currentStep >= 3 ? 'active' : ''}`}></div>
+                    </div>
+
+                  </div>
+                </div>
+                
+                {/* Detailed Description panel */}
+                <div className="flex flex-col gap-3 p-4 rounded bg-white/5 border border-white/5" style={{ fontSize: '13px', lineHeight: '1.6' }}>
+                  <div className="font-bold flex items-center gap-2" style={{ color: 'hsl(var(--primary))' }}>
+                    <Info size={16} /> How the Multi-Agent System Collaborates:
+                  </div>
+                  <div style={{ color: 'hsl(var(--text-secondary))' }}>
+                    <ol className="flex flex-col gap-2 ml-4">
+                      <li><strong>Step 1 (Search Agent & URL Selector):</strong> Leverages the Tavily Client Search Tool to execute high-fidelity parallel queries on the web. It evaluates URLs based on domain authority, indexing search hits.</li>
+                      <li><strong>Step 2 (Web Scraper):</strong> Crawls the selected top domain, downloading raw HTML and parsing the DOM tree using BeautifulSoup4 to isolate readable content while filtering headers, navigations, and styles.</li>
+                      <li><strong>Step 3 (Context Aggregator & Writer):</strong> Merges clean scraped webpage text with Tavily synthesized snippets. Instructs the Mistral Small model to compile an structured report according to strict style guidelines.</li>
+                      <li><strong>Step 4 (Review Critic & Final Output):</strong> Audit reviews the written draft against factuality and structural soundness, computing a numerical rating, constructive improvement logs, and finalizing the paper.</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Search results tab */}
-              {activeTab === 'search' && searchResults && (
-                <div className="tab-pane">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-bold flex items-center gap-2">
-                      <Search size={16} className="text-cyan-400" />
-                      Synthesized Search Hits
-                    </h4>
-                  </div>
-                  <div className="pre-wrap-box">
-                    {searchResults}
-                  </div>
-                </div>
-              )}
-
-              {/* Scraped content tab */}
-              {activeTab === 'scrape' && scrapedContent && (
-                <div className="tab-pane">
+            {/* Search results tab */}
+            {activeTab === 'search' && searchResults && (
+              <div className="tab-pane">
+                <div className="flex items-center justify-between">
                   <h4 className="text-lg font-bold flex items-center gap-2">
-                    <Compass size={16} className="text-emerald-400" />
-                    Deep Scraped Context
+                    <Search size={16} className="text-cyan-400" />
+                    Synthesized Search Hits
                   </h4>
-                  <div className="pre-wrap-box">
-                    {scrapedContent}
-                  </div>
                 </div>
-              )}
+                <div className="pre-wrap-box">
+                  {searchResults}
+                </div>
+              </div>
+            )}
 
-              {/* Research report tab */}
-              {activeTab === 'report' && report && (
-                <div className="tab-pane">
-                  <div className="report-actions">
+            {/* Scraped content tab */}
+            {activeTab === 'scrape' && scrapedContent && (
+              <div className="tab-pane">
+                <h4 className="text-lg font-bold flex items-center gap-2">
+                  <Compass size={16} className="text-emerald-400" />
+                  Deep Scraped Context
+                </h4>
+                <div className="pre-wrap-box">
+                  {scrapedContent}
+                </div>
+              </div>
+            )}
+
+            {/* Research report tab */}
+            {activeTab === 'report' && report && (
+              <div className="tab-pane">
+                {/* Document Metadata Strip */}
+                <div className="flex flex-wrap gap-4 items-center justify-between p-4 rounded bg-white/5 border border-white/5" style={{ fontSize: '13px' }}>
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1.5 text-muted">
+                      <Clock size={15} />
+                      {getReadingTime()} min read
+                    </span>
+                    <span className="flex items-center gap-1.5 text-muted border-l border-white/10 pl-4">
+                      <FileCode size={15} />
+                      {getWordCount()} words
+                    </span>
+                  </div>
+                  <div className="report-actions" style={{ marginBottom: 0 }}>
                     <button onClick={handleCopyReport} className="action-btn">
                       {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
                       {copied ? 'Copied' : 'Copy'}
@@ -634,70 +929,71 @@ export default function App() {
                       Download Markdown
                     </button>
                   </div>
-                  <div 
-                    className="report-content"
-                    dangerouslySetInnerHTML={{ __html: formatReportHTML(report) }}
-                  />
                 </div>
-              )}
 
-              {/* Critic feedback tab */}
-              {activeTab === 'critic' && feedback && (
-                <div className="tab-pane">
-                  <div className="critic-grid">
-                    {/* Circle Score dial */}
-                    {parsedScore !== null && (
-                      <div className="score-card">
-                        <span className="text-xs uppercase tracking-wider text-muted font-bold">Critic Score</span>
-                        <div className="radial-score-wrapper">
-                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                            <circle 
-                              cx="50" 
-                              cy="50" 
-                              r="40" 
-                              stroke="hsla(var(--border), 0.5)" 
-                              strokeWidth="8" 
-                              fill="transparent" 
-                            />
-                            <circle 
-                              cx="50" 
-                              cy="50" 
-                              r="40" 
-                              stroke="hsl(var(--primary))" 
-                              strokeWidth="8" 
-                              fill="transparent" 
-                              strokeDasharray={`${2 * Math.PI * 40}`}
-                              strokeDashoffset={`${2 * Math.PI * 40 * (1 - parsedScore / 10)}`}
-                              strokeLinecap="round"
-                              style={{ transition: 'stroke-dashoffset 1s ease' }}
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="radial-score-value">{parsedScore}</span>
-                            <span className="text-xs text-muted mt-2 ml-0.5">/10</span>
-                          </div>
+                <div 
+                  className="report-content"
+                  dangerouslySetInnerHTML={{ __html: formatReportHTML(report) }}
+                />
+              </div>
+            )}
+
+            {/* Critic feedback tab */}
+            {activeTab === 'critic' && feedback && (
+              <div className="tab-pane">
+                <div className="critic-grid">
+                  {/* Circle Score dial */}
+                  {parsedScore !== null && (
+                    <div className="score-card" style={{ border: `1.5px solid ${scoreColor}`, boxShadow: `0 0 25px ${scoreColor}15` }}>
+                      <span className="text-xs uppercase tracking-wider text-muted font-bold">Critic Score</span>
+                      <div className="radial-score-wrapper">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                          <circle 
+                            cx="50" 
+                            cy="50" 
+                            r="40" 
+                            stroke="hsla(var(--border), 0.5)" 
+                            strokeWidth="8" 
+                            fill="transparent" 
+                          />
+                          <circle 
+                            cx="50" 
+                            cy="50" 
+                            r="40" 
+                            stroke={scoreColor} 
+                            strokeWidth="8" 
+                            fill="transparent" 
+                            strokeDasharray={`${2 * Math.PI * 40}`}
+                            strokeDashoffset={`${2 * Math.PI * 40 * (1 - parsedScore / 10)}`}
+                            strokeLinecap="round"
+                            style={{ transition: 'stroke-dashoffset 1s ease' }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="radial-score-value" style={{ color: scoreColor }}>{parsedScore}</span>
+                          <span className="text-xs text-muted mt-2 ml-0.5">/10</span>
                         </div>
-                        <span className="text-xs text-muted">Evaluation Complete</span>
+                      </div>
+                      <span className="text-xs text-muted">Evaluation Complete</span>
+                    </div>
+                  )}
+
+                  {/* Detailed feedback */}
+                  <div className="critic-content">
+                    {verdictText && (
+                      <div className="critic-verdict" style={{ borderLeftColor: scoreColor, background: `${scoreColor}05` }}>
+                        <strong>Verdict: </strong>
+                        {verdictText}
                       </div>
                     )}
-
-                    {/* Detailed feedback */}
-                    <div className="critic-content">
-                      {verdictText && (
-                        <div className="critic-verdict">
-                          <strong>Verdict: </strong>
-                          {verdictText}
-                        </div>
-                      )}
-                      <div className="critic-details-box pre-wrap-box">
-                        {feedback}
-                      </div>
+                    <div className="critic-details-box pre-wrap-box">
+                      {feedback}
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
