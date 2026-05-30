@@ -1,104 +1,188 @@
-# 🪐 ResearchOS
-### Multi-Agent Collaborative Scientific Analysis Suite
+# 🪐 ResearchOS: Collaborative Multi-Agent Research Suite
+### Deep Agentic Analysis & Factuality Synthesis Engine
 
-ResearchOS is a premium, full-stack collaborative multi-agent deep research and scientific synthesis suite. Powered by **FastAPI** on the backend and **Vite + React** on the frontend, it features a real-time Server-Sent Events (SSE) streaming execution engine, interactive telemetry system diagnostics, and a gorgeous n8n-style **Agentic Workflow Canvas** with moving neon data packets.
+ResearchOS is a professional-grade multi-agent deep research and scientific synthesis suite. It employs a collaborative swarm of specialized **LangChain Agents** backed by **Mistral AI** (`mistral-small`) to conduct autonomous online investigations, scrape authoritative sources, synthesize structured reports, and audit factuality through rubric-based critical evaluation. 
 
----
-
-## ⚡ Tech Stack & Architecture
-
-*   **Backend Core**: Python 3.11+, FastAPI (high-performance event streaming), LangChain (Agentic execution frameworks), Uvicorn (concurrent ASGI execution).
-*   **Frontend Core**: React 19, Vite (blazing fast HMR module reloading), Lucide React (premium vector icons).
-*   **Agents & Models**: LangChain Agents with `mistral-small` via the **Langchain Mistral AI** client.
-*   **Search Engine**: **Tavily Search API** (high-fidelity parallel scientific indexing).
-*   **Scraper Engine**: **BeautifulSoup4** (DOM parsing, header strip, and text normalization).
-*   **Styling System**: Glassmorphism textures, animated visual flows, deep HSL spaces, and layout micro-animations.
+The entire framework is designed as an asynchronous, generator-driven state machine that communicates execution telemetry in real-time.
 
 ---
 
-## 🌟 Key Highlights & Capabilities
+## 🧠 Multi-Agent Systems Architecture
 
-### 🎨 1. Agentic Workflow Canvas (n8n-Style Diagram)
-*   **Snaking Grid Visual Layout**: A beautiful grid canvas rendering the exact topological flow of agents (*Trigger ➔ Search ➔ URL Selector ➔ Web Scraper ➔ Context Aggregator ➔ Writer Specialist ➔ Review Critic ➔ Final Output*).
-*   **Electrical Sockets (Ports)**: Sockets are rendered on card borders (`::before`/`::after` pseudo-elements), aligning dynamically with logical input and output directions (L-to-R for Row 1, R-to-L for Row 2, and vertical vertical bridge lines).
-*   **Active Neon Data Streams**: Flows turn into glowing linear gradients when active, with moving neon "data packet" particles traveling along connection lines via CSS animations (`flowPacketRight`, `flowPacketLeft`, `flowPacketDown`).
-*   **Interactive Node Navigation**: Clicking any completed grid node navigates the tabs directly to the corresponding logs or context!
+The suite operates using four distinct agentic personalities, each with customized prompt layers, specialized toolsets, and distinct cognitive boundaries.
 
-### 🖥️ 2. Futuristic Telemetry Control Sidebar
-*   **Command Bar Search**: Search input with a floating search icon on the left, active border transitions, and a premium mechanical keyboard shortcut badge (`↵ Enter`).
-*   **Interactive Suggestion Badges**: Quick startBadges feature Lucide icon prefixes instead of standard emojis, configured with glassmorphic backdrops and sliding hover translations.
-*   **Live UNIX stdout Console log**: Monospace terminal log console in the left sidebar that streams live agent stdout in glowing green/cyan text when the pipeline is executing.
-*   **System Diagnostics Live Heartbeat**: Telemetry diagnostic cards with left accent stripes (themed colors: fuchsia for Model, amber for Temperature, cyan for Search, emerald for BS4) and pulsing heartbeat sensors.
-
-### 📊 3. High-Fidelity Analysis Display
-*   **Reading Statistics Header**: Research report tab with an metadata header displaying estimated **Reading Time** (e.g. `~3 min read`) and **Word Count** dynamically.
-*   **Dynamic Score Indicator**: Peer Critic score radial progress dial and card border glow dynamically according to the tier of the score (Vibrant Emerald Green for excellent `score >= 7.5`, Amber/Orange for medium `5.5-7.5`, and soft crimson red for `< 5.5`).
-*   **Utility Export modules**: Copy-to-clipboard and immediate Markdown file downloader.
-
----
-
-## 🗺️ Multi-Agent logical Pipeline Architecture
-
-The system utilizes specialized collaborative agents communicating progressively:
-
-```mermaid
-graph TD
-    Start[1. Topic Submitted] -->|Triggers Pipeline| Search[2. Search Agent: Tavily API]
-    Search -->|Indexes Authority URLs| Selector[3. URL Selector: Relevance Score]
-    Selector -->|Filters Top Domains| Scraper[4. Web Scraper: BeautifulSoup4]
-    Scraper -->|Extracts Core DOM Text| Aggregator[5. Context Aggregator: Synthesizer]
-    Aggregator -->|Compiles authorative context| Writer[6. Writer Specialist: Mistral Small]
-    Writer -->|Drafts Structured Paper| Critic[7. Review Critic: Score & Audit]
-    Critic -->|Audits factuality & score| Output[8. Research Output: Markdown Download]
-
-    style Start fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#fff
-    style Search fill:#111827,stroke:#06b6d4,stroke-width:2px,color:#fff
-    style Selector fill:#111827,stroke:#06b6d4,stroke-width:2px,color:#fff
-    style Scraper fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff
-    style Aggregator fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff
-    style Writer fill:#111827,stroke:#8b5cf6,stroke-width:2px,color:#fff
-    style Critic fill:#111827,stroke:#f59e0b,stroke-width:2px,color:#fff
-    style Output fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#fff
+```
+                  ┌────────────────────────┐
+                  │   1. Topic Submitted   │
+                  └───────────┬────────────┘
+                              ▼
+                  ┌────────────────────────┐
+                  │    2. Search Agent     │ ◄─── [Tool: Tavily Web Search]
+                  └───────────┬────────────┘
+                              ▼
+                  ┌────────────────────────┐
+                  │    3. Reader Agent     │ ◄─── [Tool: BeautifulSoup Scraper]
+                  └───────────┬────────────┘
+                              ▼
+                  ┌────────────────────────┐
+                  │  4. Writer Specialist  │ ◄─── [Cognitive Report Synthesis]
+                  └───────────┬────────────┘
+                              ▼
+                  ┌────────────────────────┐
+                  │    5. Review Critic    │ ◄─── [Rubric-Based Quality Audit]
+                  └───────────┬────────────┘
+                              ▼
+                  ┌────────────────────────┐
+                  │   6. Final Synthesis   │
+                  └────────────────────────┘
 ```
 
+### 1. Search Agent (`build_search_agent`)
+*   **Model Core**: `mistral-small` via LangChain's ChatMistralAI client.
+*   **Tool Binding**: `web_search` (Tavily Search API).
+*   **Cognitive Profile**: Designed to perform parallel query expansion and index authoritative web pages. It interprets user research targets, structures search phrases, and collects highly relevant metadata (Titles, URLs, and contextual page snippets).
+*   **System Directive**: 
+    > *"Find recent, reliable and detailed information about: {topic}"*
+
+### 2. Reader Agent (`build_reader_agent`)
+*   **Model Core**: `mistral-small`.
+*   **Tool Binding**: `scrape_url` (Requests + BeautifulSoup4 Parser).
+*   **Cognitive Profile**: Evaluates the output of the Search Agent, ranks the discovered URLs based on domain authority and relevance, selects the single most promising resource, and scrapes its complete raw text for deep reading.
+*   **System Directive**:
+    > *"Based on the following search results about '{topic}', pick the most relevant URL and scrape it for deeper content."*
+
+### 3. Writer Specialist (`get_writer_chain`)
+*   **Model Core**: `mistral-small` (Zero-temperature configuration for factual compliance).
+*   **Input Context**: Aggregated research results containing raw search logs and deep scraped text.
+*   **Cognitive Profile**: Structured report drafting. Synthesizes conflicting reports, normalizes content stylistic flows, outlines logical sequences, and builds deep factual sections.
+*   **System Prompt**:
+    ```
+    You are an expert research writer. Write clear, structured and insightful reports.
+    Structure the report as:
+    - Introduction
+    - Key Findings (minimum 3 well-explained points)
+    - Conclusion
+    - Sources (list all URLs found in the research)
+    Be detailed, factual and professional.
+    ```
+
+### 4. Review Critic (`get_critic_chain`)
+*   **Model Core**: `mistral-small` (Configured for high critical rigor).
+*   **Input Context**: The complete draft generated by the Writer Specialist.
+*   **Cognitive Profile**: A sharp, analytical quality auditor. It verifies report factuality, identifies narrative gaps, scores the report against an academic scale, lists strengths and improvements, and issues a final execution verdict.
+*   **System Prompt**:
+    ```
+    You are a sharp and constructive research critic. Be honest and specific.
+    Review the research report below and evaluate it strictly.
+    Respond in this exact format:
+    
+    Score: X/10
+    
+    Strengths:
+    - ...
+    - ...
+    
+    Areas to Improve:
+    - ...
+    - ...
+    
+    One line verdict:
+    ...
+    ```
+
 ---
 
-## 🛠️ Installation & Setup Guide
+## ⚙️ Asynchronous Execution Pipeline
+
+The orchestration is governed by `pipeline.py` using a stateful generator pattern (`run_research_pipeline_generator`). This enables live streaming of tool invocation progress, intermediate results, and final synthesized outputs.
+
+### State Transitions & Context Accumulation
+
+The pipeline maintains a thread-safe `state` dictionary representing the cumulative collective memory of the agents:
+
+1.  **Phase 1: Search Invocation**
+    *   The `Search Agent` runs `web_search(query)`.
+    *   Extracts titles, URLs, and snippets of top 5 results.
+    *   Saves content to `state["search_results"]`.
+2.  **Phase 2: Deep Scraping**
+    *   The `Reader Agent` evaluates `state["search_results"]`.
+    *   Funnels the best target URL into `scrape_url(url)`.
+    *   Cleans DOM boilerplate, navigates script/style tags, and saves raw text to `state["scraped_content"]` (up to 3,000 characters).
+3.  **Phase 3: Synthesis & Report Drafting**
+    *   Combines `state["search_results"]` and `state["scraped_content"]` into a master context block.
+    *   Invokes the `Writer Specialist` to construct the multi-section paper.
+    *   Saves draft to `state["report"]`.
+4.  **Phase 4: Factuality Review & Auditing**
+    *   Invokes the `Review Critic` on `state["report"]`.
+    *   Parses qualitative critique and strict quality scoring.
+    *   Saves feedback to `state["feedback"]`.
+
+---
+
+## 🛠️ Tool System Specifications (`tools.py`)
+
+To shield the agents from noisy raw markup, specialized tools perform extensive sanitization:
+
+### 🔍 Web Search Tool (`web_search`)
+*   **API Provider**: **Tavily Client**.
+*   **Extraction Schema**: Restricts return values to five high-quality targets. Combines titles, URLs, and normalized 300-character content snippets:
+    ```python
+    @tool
+    def web_search(query: str) -> str:
+        """Search the web for recent and reliable information on a topic."""
+        # Queries Tavily Parallel Indexer...
+    ```
+
+### 📄 BeautifulSoup Scraper Tool (`scrape_url`)
+*   **Methodology**: Executes HTTP `GET` with spoofed browser headers (`Mozilla/5.0`) and tight request timeouts (8s).
+*   **DOM Sanitization**: Decomposes `<script>`, `<style>`, `<nav>`, and `<footer>` nodes to prevent token bloat. Retains the top 3,000 characters of clean structural text.
+    ```python
+    @tool
+    def scrape_url(url: str) -> str:
+        """Scrape and return clean text content from a given URL."""
+        # Cleans boilerplate and normalizes whitespace...
+    ```
+
+---
+
+## 📡 Real-Time Telemetry & SSE Streaming (`server.py`)
+
+A high-performance **FastAPI** ASGI server exposes a Server-Sent Events (SSE) streaming endpoint (`/api/research`). This streams execution telemetry packages in real-time as the agents work:
+
+*   **Heartbeat Event**: Keep-alive ping to maintain active socket connection.
+*   **Status Event**: Informs the subscriber of agent shifts (e.g. `Search agent is working...`, `Critic is reviewing the report...`).
+*   **Search Results Event**: Streams structured parallel search logs immediately upon retrieval.
+*   **Scraped Content Event**: Streams sanitized main page text immediately after BeautifulSoup parsing.
+*   **Report Event**: Streams the complete factual markdown draft.
+*   **Feedback Event**: Streams the academic score and critique card.
+
+---
+
+## 🚀 Installation & Command-Line Execution
+
+Follow these steps to run the complete multi-agent pipeline directly inside your command line:
 
 ### 📂 Directory Structure Tree
 ```
 Multi_Agent_AI_Research_System/
-├── server.py              # FastAPI Web SSE Server
-├── pipeline.py            # Async Generator Pipeline Engine
-├── agents.py              # Agentic definitions & LangChain prompts
+├── server.py              # FastAPI Web SSE Telemetry Server
+├── pipeline.py            # Stateful Coordination Pipeline Engine
+├── agents.py              # Agent Prompts, Chains, & Configurations
 ├── tools.py               # Tavily search & BeautifulSoup parser
-├── requirements.txt       # Python backend dependencies
-├── .env                   # Local credentials and API keys
-├── .gitignore             # Root gitignore (Secrets ignored!)
-└── frontend/              # Vite + React Frontend Dashboard
-    ├── package.json       # Node package manager configurations
-    ├── vite.config.js     # Hot reload configuration
-    ├── index.html         # Main entry skeleton
-    └── src/
-        ├── App.jsx        # Telemetry UI & SSE Connection logic
-        ├── App.css        # Neon pipelines, ports, & glassmorphism
-        └── index.css      # Outfits fonts, variables, & tailwind fallbacks
+├── requirements.txt       # Unified Python backend dependencies
+├── .env                   # Local credentials and API keys (Untracked)
+└── .gitignore             # Root-level ignore rules for security
 ```
 
----
-
-### Step 1: Clone & Configure Backend
-
+### 1. Initialize Python Environment
 1. Navigate to the project root directory:
    ```bash
    cd Multi_Agent_AI_Research_System
    ```
-
-2. Create a virtual environment:
+2. Build a localized virtual environment:
    ```bash
    python3 -m venv .venv
    ```
-
 3. Activate the virtual environment:
    *   **macOS / Linux**:
        ```bash
@@ -108,58 +192,28 @@ Multi_Agent_AI_Research_System/
        ```bash
        .venv\Scripts\activate
        ```
-
-4. Install python dependencies:
+4. Install backend dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-5. Create your `.env` file at the root:
-   ```bash
-   touch .env
-   ```
+### 2. Configure Local Credentials
+Create a `.env` file in the root directory to store your API keys:
+```env
+MISTRAL_API_KEY="your_mistral_api_key"
+TAVILY_API_KEY="your_tavily_api_key"
+```
+*(Note: `.env` is fully ignored by Git to secure your keys from public repositories.)*
 
-6. Configure your environment credentials in `.env`:
-   ```env
-   MISTRAL_API_KEY="your_mistral_api_key"
-   TAVILY_API_KEY="your_tavily_api_key"
-   ```
-   *(Note: `.env` is untracked by Git for security.)*
-
-7. Start the FastAPI backend server:
-   ```bash
-   python server.py
-   ```
-   The backend server will launch on: **[http://localhost:8000](http://localhost:8000)**
-
----
-
-### Step 2: Configure & Start Frontend
-
-1. Open a new terminal session, navigate to the `/frontend` directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install Node dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the Vite React development server:
-   ```bash
-   npm run dev
-   ```
-   The React dashboard will launch on: **[http://localhost:5173](http://localhost:5173)**
-
----
-
-## 🔍 How to Use
-1. Open your browser and navigate to **[http://localhost:5173](http://localhost:5173)**.
-2. If your `.env` contains valid credentials, the **Research Director** input is unlocked. Alternatively, you can click the **API Credentials** toggle in the header, input your key, and click **Verify Key** to save it locally.
-3. Enter any deep research topic (or click one of the suggested Quick investigations chips).
-4. Click **Initialize Pipeline** and watch:
-   - The UNIX-styleStdout Monospace console terminal stream stdout logs in real-time.
-   - Sockets and nodes illuminate in neon purple and green.
-   - Data streams pulse along connection lines.
-5. Once complete, click completed nodes to inspect their outputs, download your markdown paper, or audit evaluation scores!
+### 3. Dry-Run the Multi-Agent Pipeline on Terminal
+You can run the multi-agent execution pipeline directly as a localized console utility:
+```bash
+python pipeline.py
+```
+**Interactive Prompt**:
+1. Enter your research topic when prompted (e.g., `Advances in Fusion Reactor Core Containment`).
+2. Watch the live telemetry logs stream in your terminal as:
+    *   **Search Agent** discovers sources and queries Tavily.
+    *   **Reader Agent** cleans DOMs via BeautifulSoup.
+    *   **Writer Specialist** drafts a highly structured report.
+    *   **Review Critic** prints a rubric score and detailed peer feedback directly to the stdout console.
