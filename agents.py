@@ -8,17 +8,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatMistralAI(model = "mistral-small")
+def get_llm(api_key: str = None):
+    if api_key:
+        return ChatMistralAI(model="mistral-small", mistral_api_key=api_key)
+    return ChatMistralAI(model="mistral-small")
 
-def build_search_agent():
+def build_search_agent(api_key: str = None):
     return create_agent(
-        model=llm,
+        model=get_llm(api_key),
         tools=[web_search]    
     )
 
-def build_reader_agent():
+def build_reader_agent(api_key: str = None):
     return create_agent(
-        model = llm,
+        model=get_llm(api_key),
         tools=[scrape_url]
     )
 
@@ -40,7 +43,11 @@ Structure the report as:
 Be detailed, factual and professional."""),
 ])
 
-writer_chain = writer_prompt | llm | StrOutputParser()
+def get_writer_chain(api_key: str = None):
+    return writer_prompt | get_llm(api_key) | StrOutputParser()
+
+# Keep legacy globals for compatibility
+writer_chain = get_writer_chain()
 
 critic_prompt = ChatPromptTemplate.from_messages([
      ("system", "You are a sharp and constructive research critic. Be honest and specific."),
@@ -65,4 +72,9 @@ One line verdict:
 ..."""),
 ])
 
-critic_chain = critic_prompt | llm | StrOutputParser()
+def get_critic_chain(api_key: str = None):
+    return critic_prompt | get_llm(api_key) | StrOutputParser()
+
+# Keep legacy globals for compatibility
+critic_chain = get_critic_chain()
+

@@ -12,9 +12,41 @@ import {
   ArrowRight,
   TrendingUp,
   AlertCircle,
-  Download
+  Download,
+  Key,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
+  Settings,
+  ShieldCheck,
+  Cpu,
+  RefreshCw,
+  Info
 } from 'lucide-react';
 import './App.css';
+
+const ensureString = (val) => {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (Array.isArray(val)) {
+    return val
+      .map(item => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') {
+          if (item.text) return item.text;
+          return JSON.stringify(item);
+        }
+        return '';
+      })
+      .join('');
+  }
+  if (typeof val === 'object') {
+    if (val.text) return val.text;
+    return JSON.stringify(val);
+  }
+  return String(val);
+};
 
 export default function App() {
   const [topic, setTopic] = useState('');
@@ -36,13 +68,19 @@ export default function App() {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   
-  const progressInterval = useRef(null);
+  // Custom API Key States
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('mistral_api_key') || '');
+  const [isKeyValid, setIsKeyValid] = useState(() => localStorage.getItem('mistral_api_key_valid') === 'true');
+  const [isValidatingKey, setIsValidatingKey] = useState(false);
+  const [keyValidationError, setKeyValidationError] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [showSettings, setShowSettings] = useState(() => localStorage.getItem('mistral_api_key_valid') !== 'true');
 
   // Extract score out of critic feedback (format: "Score: X/10")
   const getScore = () => {
     if (!feedback) return null;
-    const match = feedback.match(/Score:\s*(\d+)\/10/i);
-    return match ? parseInt(match[1]) : null;
+    const match = feedback.match(/Score:\s*([0-9.]+)\/10/i);
+    return match ? parseFloat(match[1]) : null;
   };
 
   // Extract verdict (format: "One line verdict:\n...")
@@ -70,9 +108,60 @@ export default function App() {
     document.body.removeChild(element);
   };
 
+  const validateApiKey = async (e) => {
+    e.preventDefault();
+    if (!apiKey.trim()) return;
+
+    setIsValidatingKey(true);
+    setKeyValidationError('');
+    setIsKeyValid(false);
+    localStorage.removeItem('mistral_api_key_valid');
+
+    try {
+      const response = await fetch('http://localhost:8000/api/validate-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server validation failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.valid) {
+        setIsKeyValid(true);
+        localStorage.setItem('mistral_api_key', apiKey.trim());
+        localStorage.setItem('mistral_api_key_valid', 'true');
+        setShowSettings(false); // Auto collapse settings once validated
+      } else {
+        setKeyValidationError(data.error || 'The API key provided is invalid. Please try another one.');
+      }
+    } catch (err) {
+      setKeyValidationError(err.message || 'Unable to contact the validation server.');
+    } finally {
+      setIsValidatingKey(false);
+    }
+  };
+
+  const handleRemoveKey = () => {
+    setApiKey('');
+    setIsKeyValid(false);
+    localStorage.removeItem('mistral_api_key');
+    localStorage.removeItem('mistral_api_key_valid');
+    setShowSettings(true);
+  };
+
   const startResearch = async (e) => {
     e.preventDefault();
     if (!topic.trim()) return;
+    if (!isKeyValid) {
+      setError('Please provide and validate your Mistral API key before initiating research.');
+      setShowSettings(true);
+      return;
+    }
 
     // Reset states
     setIsRunning(true);
@@ -96,7 +185,7 @@ export default function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, apiKey }),
       });
 
       if (!response.ok) {
@@ -138,16 +227,16 @@ export default function App() {
                   return updated;
                 });
               } else if (event.type === 'search_results') {
-                setSearchResults(event.data);
+                setSearchResults(ensureString(event.data));
                 setActiveTab('search');
               } else if (event.type === 'scraped_content') {
-                setScrapedContent(event.data);
+                setScrapedContent(ensureString(event.data));
                 setActiveTab('scrape');
               } else if (event.type === 'report') {
-                setReport(event.data);
+                setReport(ensureString(event.data));
                 setActiveTab('report');
               } else if (event.type === 'feedback') {
-                setFeedback(event.data);
+                setFeedback(ensureString(event.data));
                 setActiveTab('critic');
               } else if (event.type === 'complete') {
                 setCurrentStep(5);
@@ -219,9 +308,19 @@ export default function App() {
             <p>Multi-Agent Collaborative Scientific Analysis Suite</p>
           </div>
         </div>
-        <div className="status-pill">
-          <div className={`status-dot ${isRunning ? 'active' : ''}`}></div>
-          {isRunning ? 'Agents Synchronizing' : 'Core Engine Ready'}
+        <div className="flex items-center gap-4">
+          <button 
+            className={`action-btn ${showSettings ? 'active' : ''}`}
+            onClick={() => setShowSettings(!showSettings)}
+            disabled={isRunning}
+          >
+            <Settings size={16} />
+            API Credentials
+          </button>
+          <div className="status-pill">
+            <div className={`status-dot ${isRunning ? 'active' : ''}`}></div>
+            {isRunning ? 'Agents Synchronizing' : 'Core Engine Ready'}
+          </div>
         </div>
       </header>
 
@@ -229,7 +328,100 @@ export default function App() {
       <div className="dashboard-grid">
         {/* Left column: Controls & Visual flow */}
         <div className="flex flex-col gap-6">
-          <div className="glass-card active-card">
+          
+          {/* Collapsible API Key Card */}
+          {showSettings && (
+            <div className="glass-card active-card settings-card">
+              <h3 className="card-title">
+                <Key size={18} />
+                Mistral AI Credentials
+              </h3>
+              <p className="text-xs text-muted mb-6">
+                To run the multi-agent pipelines, configure a valid Mistral AI API key below. 
+                Your key is stored securely in your local browser session.
+              </p>
+              
+              <form onSubmit={validateApiKey} className="flex flex-col gap-4">
+                <div className="key-input-group">
+                  <div className="key-input-wrapper">
+                    <input 
+                      type={showKey ? 'text' : 'password'}
+                      placeholder="Enter mistral_api_key..."
+                      className="search-input"
+                      style={{ paddingRight: '48px', fontSize: '13px' }}
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      disabled={isValidatingKey || isRunning}
+                    />
+                    <button 
+                      type="button" 
+                      className="key-toggle-btn"
+                      onClick={() => setShowKey(!showKey)}
+                      disabled={!apiKey}
+                    >
+                      {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  
+                  {isKeyValid ? (
+                    <button 
+                      type="button" 
+                      onClick={handleRemoveKey}
+                      className="validate-btn" 
+                      style={{ background: 'hsla(var(--error), 0.15)', border: '1px solid hsla(var(--error), 0.3)', color: 'hsl(var(--error))' }}
+                      disabled={isRunning}
+                    >
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button 
+                      type="submit" 
+                      className="validate-btn"
+                      disabled={isValidatingKey || !apiKey.trim() || isRunning}
+                    >
+                      {isValidatingKey ? (
+                        <>
+                          <RotateCw className="animate-spin" size={14} />
+                          Verifying...
+                        </>
+                      ) : (
+                        'Verify Key'
+                      )}
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {keyValidationError && (
+                <div className="flex items-start gap-2 p-3 mt-4 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                  <AlertCircle className="shrink-0 mt-0.5" size={14} />
+                  <span>{keyValidationError}</span>
+                </div>
+              )}
+
+              <div className={`key-status-badge ${isKeyValid ? 'valid' : apiKey ? 'invalid' : 'idle'}`}>
+                {isKeyValid ? (
+                  <>
+                    <ShieldCheck size={14} />
+                    Validated & Session Active
+                  </>
+                ) : apiKey ? (
+                  <>
+                    <Lock size={14} />
+                    Unverified Credentials
+                  </>
+                ) : (
+                  <>
+                    <Info size={14} />
+                    Awaiting API Key Setup
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Director Card */}
+          <div className="glass-card">
             <h3 className="card-title">
               <Terminal size={18} />
               Research Director
@@ -243,18 +435,18 @@ export default function App() {
                   className="search-input"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  disabled={isRunning}
+                  disabled={isRunning || !isKeyValid}
                 />
               </div>
               <button 
                 type="submit" 
                 className="submit-btn"
-                disabled={isRunning || !topic.trim()}
+                disabled={isRunning || !topic.trim() || !isKeyValid}
               >
                 {isRunning ? (
                   <>
                     <RotateCw className="animate-spin" size={18} />
-                    Researching...
+                    Running Agents...
                   </>
                 ) : (
                   <>
@@ -264,6 +456,13 @@ export default function App() {
                 )}
               </button>
             </form>
+
+            {!isKeyValid && (
+              <div className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm">
+                <Info className="shrink-0 mt-0.5" size={16} />
+                <span>Configure and validate your Mistral API Key above to unlock the Research Director.</span>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -326,14 +525,31 @@ export default function App() {
           {!searchResults && !report && !isRunning ? (
             <div className="empty-state">
               <div className="empty-icon">
-                <Compass size={32} />
+                <Cpu className="spin-slow" size={32} />
               </div>
-              <h3>Launch a New Investigation</h3>
-              <p>
-                Provide a complex question, scientific concept or market trend. 
-                Our multi-agent team will crawl the web, scrape articles, write an exhaustive report, 
-                and perform critique analysis.
+              <h3>Collaborative Agentic Core</h3>
+              <p className="mb-6">
+                Welcome to ResearchOS. Once your API key is validated, submit a topic and our multi-agent core will activate.
               </p>
+              
+              <div className="flex flex-col gap-3 text-left w-full max-w-md mx-auto" style={{ fontSize: '13px', color: 'hsl(var(--text-secondary))' }}>
+                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
+                  <Search size={16} className="text-cyan-400 shrink-0" />
+                  <span><strong>Search Agent</strong> finds recent, authoritative web sources using Tavily.</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
+                  <Compass size={16} className="text-emerald-400 shrink-0" />
+                  <span><strong>Scraper Agent</strong> extracts clean, relevant text content out of target URLs.</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
+                  <BookOpen size={16} className="text-purple-400 shrink-0" />
+                  <span><strong>Writer Specialist</strong> organizes discoveries into an exhaustive structured report.</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded bg-white/5 border border-white/5">
+                  <FileText size={16} className="text-pink-400 shrink-0" />
+                  <span><strong>Critic Critic</strong> evaluates the report, calculating a rating out of 10.</span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="tabs-container">

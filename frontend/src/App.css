@@ -554,3 +554,105 @@
   border-color: hsl(var(--border-hover));
   color: hsl(var(--text-primary));
 }
+
+.action-btn.active {
+  background: hsla(var(--primary), 0.08);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+/* API Credentials Settings UI Styles */
+.settings-card {
+  margin-bottom: 24px;
+}
+
+.key-input-group {
+  display: flex;
+  gap: 12px;
+}
+
+.key-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.key-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: hsl(var(--text-muted));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  outline: none;
+}
+
+.key-toggle-btn:hover {
+  color: hsl(var(--text-primary));
+}
+
+.validate-btn {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px hsla(var(--primary), 0.2);
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+}
+
+.validate-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 18px hsla(var(--primary), 0.35);
+  transform: translateY(-1px);
+}
+
+.validate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.key-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.key-status-badge.valid {
+  background: hsla(var(--success), 0.1);
+  border: 1px solid hsla(var(--success), 0.2);
+  color: hsl(var(--success));
+}
+
+.key-status-badge.invalid {
+  background: hsla(var(--error), 0.1);
+  border: 1px solid hsla(var(--error), 0.2);
+  color: hsl(var(--error));
+}
+
+.key-status-badge.idle {
+  background: hsla(var(--border), 0.3);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--text-muted));
+}
+

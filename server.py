@@ -16,27 +16,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def safe_next(generator):
+    try:
+        return next(generator)
+    except StopIteration:
+        return None
+
+@app.post("/api/validate-key")
+async def validate_key(request: Request):
+    body = await request.json()
+    api_key = body.get("apiKey")
+    if not api_key:
+        return {"valid": False, "error": "API Key is required"}
+    
+    try:
+        from langchain_mistralai import ChatMistralAI
+        # Create mistral client with this key and do a quick check
+        llm = ChatMistralAI(model="mistral-small", mistral_api_key=api_key)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None, 
+            lambda: llm.invoke("Hello, quick key check. Respond only with 'ok'.", max_tokens=2)
+        )
+        return {"valid": True}
+    except Exception as e:
+        return {"valid": False, "error": str(e)}
+
 @app.post("/api/research")
 async def research(request: Request):
     body = await request.json()
     topic = body.get("topic")
+    api_key = body.get("apiKey") # Optional custom API key from user
     if not topic:
         return {"error": "Topic is required"}
     
     async def event_generator():
         loop = asyncio.get_event_loop()
-        gen = run_research_pipeline_generator(topic)
+        gen = run_research_pipeline_generator(topic, api_key=api_key)
         
         while True:
             try:
-                # Run the blocking next() call in the executor to keep the event loop responsive
-                event = await loop.run_in_executor(None, next, gen)
+                # Run the blocking safe_next() call safely in the executor
+                event = await loop.run_in_executor(None, safe_next, gen)
+                if event is None:
+                    break
                 yield f"data: {json.dumps(event)}\n\n"
-            except StopIteration:
-                break
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
                 break
+
+
                 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
