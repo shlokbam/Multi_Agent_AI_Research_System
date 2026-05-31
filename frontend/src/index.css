@@ -144,8 +144,8 @@ h1, h2, h3, h4, h5, h6 {
 .p-4 { padding: 16px; }
 .mb-6 { margin-bottom: 24px; }
 .mt-2 { margin-top: 8px; }
-.mt-0.5 { margin-top: 2px; }
-.ml-0.5 { margin-left: 2px; }
+.mt-0-5 { margin-top: 2px; }
+.ml-0-5 { margin-left: 2px; }
 
 .rounded-lg { border-radius: var(--radius-md); }
 .border { border: 1px solid hsl(var(--border)); }

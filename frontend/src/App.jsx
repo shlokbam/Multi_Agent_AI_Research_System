@@ -437,7 +437,7 @@ export default function App() {
 
               {keyValidationError && (
                 <div className="flex items-start gap-2 p-3 mt-4 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                  <AlertCircle className="shrink-0 mt-0.5" size={14} />
+                  <AlertCircle className="shrink-0 mt-0-5" size={14} />
                   <span>{keyValidationError}</span>
                 </div>
               )}
@@ -504,14 +504,14 @@ export default function App() {
 
             {!isKeyValid && (
               <div className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm">
-                <Info className="shrink-0 mt-0.5" size={16} />
+                <Info className="shrink-0 mt-0-5" size={16} />
                 <span>Configure and validate your Mistral API Key above to unlock the Research Director.</span>
               </div>
             )}
 
             {error && (
               <div className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                <AlertCircle className="shrink-0 mt-0.5" size={16} />
+                <AlertCircle className="shrink-0 mt-0-5" size={16} />
                 <span>{error}</span>
               </div>
             )}
@@ -973,7 +973,7 @@ export default function App() {
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="radial-score-value" style={{ color: scoreColor }}>{parsedScore}</span>
-                          <span className="text-xs text-muted mt-2 ml-0.5">/10</span>
+                          <span className="text-xs text-muted mt-2 ml-0-5">/10</span>
                         </div>
                       </div>
                       <span className="text-xs text-muted">Evaluation Complete</span>
