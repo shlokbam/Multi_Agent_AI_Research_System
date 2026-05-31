@@ -53,6 +53,8 @@ const ensureString = (val) => {
   return String(val);
 };
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
 export default function App() {
   const [topic, setTopic] = useState('');
   const [isRunning, setIsRunning] = useState(false);
@@ -142,7 +144,7 @@ export default function App() {
     localStorage.removeItem('mistral_api_key_valid');
 
     try {
-      const response = await fetch('http://localhost:8000/api/validate-key', {
+      const response = await fetch(`${API_BASE}/api/validate-key`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -204,7 +206,7 @@ export default function App() {
     });
 
     try {
-      const response = await fetch('http://localhost:8000/api/research', {
+      const response = await fetch(`${API_BASE}/api/research`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
