@@ -648,10 +648,10 @@ export default function App() {
                 </div>
                 <div className="diag-item search-diag">
                   <div className="diag-header flex items-center justify-between w-full">
-                    <span className="label">Search Engine</span>
+                    <span className="label">Search & RAG</span>
                     <Search size={12} className="diag-icon text-cyan-icon" />
                   </div>
-                  <span className="val text-cyan-val">Tavily API</span>
+                  <span className="val text-cyan-val">Tavily + Chroma</span>
                 </div>
                 <div className="diag-item crawler-diag">
                   <div className="diag-header flex items-center justify-between w-full">
@@ -756,7 +756,7 @@ export default function App() {
                         <div className="workflow-node-icon"><Search size={18} /></div>
                         <div className="workflow-node-text">
                           <h4>Search Agent</h4>
-                          <p>Tavily Search API</p>
+                          <p>Tavily & Local RAG</p>
                         </div>
                       </div>
                       <div className={`flow-line flow-line-right ${currentStep >= 2 ? 'active' : ''}`}></div>
@@ -868,10 +868,10 @@ export default function App() {
                   </div>
                   <div style={{ color: 'hsl(var(--text-secondary))' }}>
                     <ol className="flex flex-col gap-2 ml-4">
-                      <li><strong>Step 1 (Search Agent & URL Selector):</strong> Leverages the Tavily Client Search Tool to execute high-fidelity parallel queries on the web. It evaluates URLs based on domain authority, indexing search hits.</li>
+                      <li><strong>Step 1 (Search Agent & RAG Lookup):</strong> Leverages a local ChromaDB vector database and Tavily Web Search to retrieve semantic context from past reports and gather fresh web hits.</li>
                       <li><strong>Step 2 (Web Scraper):</strong> Crawls the selected top domain, downloading raw HTML and parsing the DOM tree using BeautifulSoup4 to isolate readable content while filtering headers, navigations, and styles.</li>
-                      <li><strong>Step 3 (Context Aggregator & Writer):</strong> Merges clean scraped webpage text with Tavily synthesized snippets. Instructs the Mistral Small model to compile an structured report according to strict style guidelines.</li>
-                      <li><strong>Step 4 (Review Critic & Final Output):</strong> Audit reviews the written draft against factuality and structural soundness, computing a numerical rating, constructive improvement logs, and finalizing the paper.</li>
+                      <li><strong>Step 3 (Context Aggregator & Writer):</strong> Merges clean scraped webpage text with Tavily snippets and local RAG context, instructing Mistral to compile a structured report.</li>
+                      <li><strong>Step 4 (Review Critic, Ingestion, & Final Output):</strong> Audits the draft for quality, calculates a numerical rating, and automatically indexes the final report and scraped sources back into ChromaDB for future RAG runs.</li>
                     </ol>
                   </div>
                 </div>
