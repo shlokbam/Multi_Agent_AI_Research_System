@@ -22,7 +22,7 @@ The suite operates using four distinct agentic personalities, each with customiz
                         │           ▲
                         ▼           │
                   ┌─────────────────┴──────┐
-                  │  Local Vector Database │ ◄─── (ChromaDB + MistralAIEmbeddings)
+                  │    Vector Database     │ ◄─── (Pinecone / ChromaDB Fallback)
                   └────────────────────────┘
                               │
                               ▼
@@ -46,7 +46,7 @@ The suite operates using four distinct agentic personalities, each with customiz
 
 ### 1. Search Agent (`build_search_agent`)
 *   **Model Core**: `mistral-small` via LangChain's ChatMistralAI client.
-*   **Tool Binding**: `web_search` (Tavily Search API) and `query_knowledge_base_tool` (ChromaDB Local RAG).
+*   **Tool Binding**: `web_search` (Tavily Search API) and `query_knowledge_base_tool` (Pinecone Cloud / ChromaDB Fallback).
 *   **Cognitive Profile**: Designed to perform parallel query expansion across the local knowledge base and the live web. It interprets user research targets, structures search phrases, and gathers both historical contexts and fresh live snippets to avoid redundant research.
 *   **System Directive**: 
     > *"Find recent, reliable and detailed information about: {topic}"*
@@ -155,7 +155,7 @@ To shield the agents from noisy raw markup, specialized tools perform extensive 
     ```
 
 ### 📂 Knowledge Base Tool (`query_knowledge_base_tool`)
-*   **Vector Database**: **ChromaDB** persisted locally in `./data/chroma_db`.
+*   **Vector Database**: **Pinecone Cloud** index (Production default) with automated local fallback to **ChromaDB** in `./data/chroma_db`.
 *   **Embeddings Engine**: `MistralAIEmbeddings` utilizing the `mistral-embed` model.
 *   **Context Scope**: Searches historically saved research drafts and raw scraped content using cosine similarity. Returns the top 4 most relevant text segments containing metadata (topic, type, timestamp).
     ```python
@@ -194,8 +194,9 @@ Multi_Agent_AI_Research_System/
 ├── tools.py               # Tavily search, BeautifulSoup, & Knowledge Base tools
 ├── requirements.txt       # Unified Python backend dependencies
 ├── .env                   # Local credentials and API keys (Untracked)
+├── .python-version        # Specifies Python version (3.13.2) for deployment compatibility
 ├── data/
-│   └── chroma_db/         # Local ChromaDB vector database directory
+│   └── chroma_db/         # Local ChromaDB vector database directory (fallback)
 └── .gitignore             # Root-level ignore rules for security
 ```
 
@@ -223,10 +224,20 @@ Multi_Agent_AI_Research_System/
    ```
 
 ### 2. Configure Local Credentials
-Create a `.env` file in the root directory to store your API keys:
+Create a `.env` file in the root directory to store your API keys and configuration parameters:
 ```env
 MISTRAL_API_KEY="your_mistral_api_key"
 TAVILY_API_KEY="your_tavily_api_key"
+
+# LangSmith Observability (Optional)
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY="your_langsmith_api_key"
+LANGCHAIN_PROJECT="multi-agent-research-system"
+
+# Pinecone Cloud Vector DB (Optional - Falls back to local ChromaDB if omitted)
+PINECONE_API_KEY="your_pinecone_api_key"
+PINECONE_INDEX_NAME="research-knowledge-base"
 ```
 *(Note: `.env` is fully ignored by Git to secure your keys from public repositories.)*
 
