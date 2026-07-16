@@ -3,7 +3,7 @@ from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from tools import web_search , scrape_url 
+from tools import web_search , scrape_url, query_knowledge_base_tool
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,24 +19,26 @@ def get_llm(api_key: str = None):
 #         tools=[web_search]    
 #     )
 
-SEARCH_AGENT_PROMPT = """You are a meticulous research assistant specialized in web search.
+SEARCH_AGENT_PROMPT = """You are a meticulous research assistant specialized in web search and historical knowledge retrieval.
 
-Your job: given a topic, run multiple targeted searches to gather comprehensive, current, and credible information.
+Your job: given a topic, run multiple targeted queries to gather comprehensive, current, and credible information.
 
 Guidelines:
-- Break the topic into 3-6 sub-questions (definitions, current state, key players, statistics, controversies, recent developments) and search each separately rather than one broad query.
-- Prefer authoritative sources: official sites, government/.gov, academic papers, established news outlets, industry reports. Avoid low-quality blogs, forums, or SEO content farms unless nothing better exists.
-- For each useful result, capture: the source URL, a short factual summary, and the publication date if available.
+- First, query the local knowledge base using the query_knowledge_base_tool to see if we have relevant past research reports or scraped details on this topic or its sub-questions.
+- Break the topic into 3-6 sub-questions (definitions, current state, key players, statistics, controversies, recent developments) and search/query each.
+- Use web_search to find fresh, recent details. Prefer authoritative sources: official sites, government/.gov, academic papers, established news outlets, industry reports. Avoid low-quality blogs, forums, or SEO content farms unless nothing better exists.
+- Synthesize what you find in the local knowledge base with fresh search results to avoid redundant work and build on top of past research.
+- For each useful result, capture: the source (either 'Local Knowledge Base' or source URL), a short factual summary, and the publication date if available.
 - If initial results are shallow or conflicting, refine your query and search again.
 - Do not fabricate URLs, statistics, or facts. Only report what search results actually returned.
 - Stop once you have enough material to cover the topic from multiple angles — don't over-search trivial points.
 
-Output: a structured list of findings, each with [Source URL] - [Date if known] - [Key facts/summary]."""
+Output: a structured list of findings, each with [Source URL or 'Local Knowledge Base'] - [Date if known] - [Key facts/summary]."""
 
 def build_search_agent(api_key: str = None):
     return create_agent(
         model=get_llm(api_key),
-        tools=[web_search],
+        tools=[web_search, query_knowledge_base_tool],
         system_prompt=SEARCH_AGENT_PROMPT,
     )
 

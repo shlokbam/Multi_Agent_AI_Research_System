@@ -35,5 +35,12 @@ def scrape_url(url: str) -> str:
         return soup.get_text(separator=" ", strip=True)[:3000]
     except Exception as e:
         return f"Could not scrape URL: {str(e)}"
+
+@tool
+def query_knowledge_base_tool(query: str) -> str:
+    """Search the local knowledge base of past research reports for relevant information. Use this to retrieve details from past research tasks before searching the web."""
+    from rag_store import query_knowledge_base
+    return query_knowledge_base(query)
+
         
 

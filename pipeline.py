@@ -3,6 +3,8 @@ import os
 
 def run_research_pipeline_generator(topic: str, api_key: str = None):
     state = {}
+    if api_key:
+        os.environ["MISTRAL_API_KEY"] = api_key
     
     yield {"type": "status", "step": 1, "message": "Search agent is working..."}
     search_agent = build_search_agent(api_key=api_key)
@@ -42,6 +44,14 @@ def run_research_pipeline_generator(topic: str, api_key: str = None):
         "report": state['report']
     })
     yield {"type": "feedback", "data": state['feedback']}
+
+    # Index report and scraped content in the local knowledge base
+    try:
+        from rag_store import save_to_knowledge_base
+        save_to_knowledge_base(topic, state['report'], state.get('scraped_content', ''), api_key=api_key)
+    except Exception as e:
+        print(f"[RAG Ingestion Bypass] Could not index report: {e}")
+
     yield {"type": "complete", "state": state}
 
 def run_research_pipeline(topic:str, api_key: str = None) -> dict:

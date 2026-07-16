@@ -46,3 +46,8 @@ html5lib>=1.1
 # API Backend
 fastapi>=0.100.0
 uvicorn>=0.20.0
+
+# Vector Database (RAG) Support
+chromadb>=0.5.0
+langchain-chroma>=0.1.0
+langchain-text-splitters>=0.2.0

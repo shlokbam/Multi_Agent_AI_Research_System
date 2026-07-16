@@ -18,7 +18,13 @@ The suite operates using four distinct agentic personalities, each with customiz
                               ▼
                   ┌────────────────────────┐
                   │    2. Search Agent     │ ◄─── [Tool: Tavily Web Search]
-                  └───────────┬────────────┘
+                  └─────┬───────────┬──────┘      [Tool: query_knowledge_base_tool]
+                        │           ▲
+                        ▼           │
+                  ┌─────────────────┴──────┐
+                  │  Local Vector Database │ ◄─── (ChromaDB + MistralAIEmbeddings)
+                  └────────────────────────┘
+                              │
                               ▼
                   ┌────────────────────────┐
                   │    3. Reader Agent     │ ◄─── [Tool: BeautifulSoup Scraper]
@@ -31,7 +37,8 @@ The suite operates using four distinct agentic personalities, each with customiz
                   ┌────────────────────────┐
                   │    5. Review Critic    │ ◄─── [Rubric-Based Quality Audit]
                   └───────────┬────────────┘
-                              ▼
+                              │
+                              ▼ (Index Report & Sources)
                   ┌────────────────────────┐
                   │   6. Final Synthesis   │
                   └────────────────────────┘
@@ -39,8 +46,8 @@ The suite operates using four distinct agentic personalities, each with customiz
 
 ### 1. Search Agent (`build_search_agent`)
 *   **Model Core**: `mistral-small` via LangChain's ChatMistralAI client.
-*   **Tool Binding**: `web_search` (Tavily Search API).
-*   **Cognitive Profile**: Designed to perform parallel query expansion and index authoritative web pages. It interprets user research targets, structures search phrases, and collects highly relevant metadata (Titles, URLs, and contextual page snippets).
+*   **Tool Binding**: `web_search` (Tavily Search API) and `query_knowledge_base_tool` (ChromaDB Local RAG).
+*   **Cognitive Profile**: Designed to perform parallel query expansion across the local knowledge base and the live web. It interprets user research targets, structures search phrases, and gathers both historical contexts and fresh live snippets to avoid redundant research.
 *   **System Directive**: 
     > *"Find recent, reliable and detailed information about: {topic}"*
 
@@ -116,6 +123,10 @@ The pipeline maintains a thread-safe `state` dictionary representing the cumulat
     *   Invokes the `Review Critic` on `state["report"]`.
     *   Parses qualitative critique and strict quality scoring.
     *   Saves feedback to `state["feedback"]`.
+5.  **Phase 5: Knowledge Base Indexing (RAG)**
+    *   Upon successful compilation and review of the research paper, the pipeline automatically ingests the final report and raw scraped data.
+    *   Uses `RecursiveCharacterTextSplitter` to chunk the text into overlapping segments of ~1000 characters.
+    *   Embeds chunks using `MistralAIEmbeddings` and registers them into a local `Chroma` database for historical query availability.
 
 ---
 
@@ -143,6 +154,17 @@ To shield the agents from noisy raw markup, specialized tools perform extensive 
         # Cleans boilerplate and normalizes whitespace...
     ```
 
+### 📂 Knowledge Base Tool (`query_knowledge_base_tool`)
+*   **Vector Database**: **ChromaDB** persisted locally in `./data/chroma_db`.
+*   **Embeddings Engine**: `MistralAIEmbeddings` utilizing the `mistral-embed` model.
+*   **Context Scope**: Searches historically saved research drafts and raw scraped content using cosine similarity. Returns the top 4 most relevant text segments containing metadata (topic, type, timestamp).
+    ```python
+    @tool
+    def query_knowledge_base_tool(query: str) -> str:
+        """Search the local knowledge base of past research reports for relevant information."""
+        # Semantically matches historical context...
+    ```
+
 ---
 
 ## 📡 Real-Time Telemetry & SSE Streaming (`server.py`)
@@ -167,10 +189,13 @@ Follow these steps to run the complete multi-agent pipeline directly inside your
 Multi_Agent_AI_Research_System/
 ├── server.py              # FastAPI Web SSE Telemetry Server
 ├── pipeline.py            # Stateful Coordination Pipeline Engine
+├── rag_store.py           # RAG Vector Store Ingestion & Query Operations
 ├── agents.py              # Agent Prompts, Chains, & Configurations
-├── tools.py               # Tavily search & BeautifulSoup parser
+├── tools.py               # Tavily search, BeautifulSoup, & Knowledge Base tools
 ├── requirements.txt       # Unified Python backend dependencies
 ├── .env                   # Local credentials and API keys (Untracked)
+├── data/
+│   └── chroma_db/         # Local ChromaDB vector database directory
 └── .gitignore             # Root-level ignore rules for security
 ```
 
