@@ -51,3 +51,5 @@ uvicorn>=0.20.0
 chromadb>=0.5.0
 langchain-chroma>=0.1.0
 langchain-text-splitters>=0.2.0
+langchain-pinecone>=0.1.0
+pinecone>=5.0.0

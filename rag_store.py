@@ -1,9 +1,14 @@
 import os
 import time
-from langchain_chroma import Chroma
-from langchain_mistralai import MistralAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_mistralai import MistralAIEmbeddings
+
+def is_pinecone_configured() -> bool:
+    """
+    Check if Pinecone API keys and index names are loaded in the environment.
+    """
+    return bool(os.getenv("PINECONE_API_KEY") and os.getenv("PINECONE_INDEX_NAME"))
 
 def get_embeddings(api_key: str = None):
     """
@@ -16,19 +21,34 @@ def get_embeddings(api_key: str = None):
 
 def get_vector_store(api_key: str = None):
     """
-    Initialize and return Chroma vector store wrapper.
+    Initialize and return either Pinecone or Chroma vector store dynamically
+    based on environment variables.
     """
-    persist_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "chroma_db")
     embeddings = get_embeddings(api_key)
-    return Chroma(
-        collection_name="research_knowledge_base",
-        embedding_function=embeddings,
-        persist_directory=persist_directory
-    )
+    
+    if is_pinecone_configured():
+        from langchain_pinecone import PineconeVectorStore
+        index_name = os.getenv("PINECONE_INDEX_NAME")
+        pinecone_key = os.getenv("PINECONE_API_KEY")
+        print(f"[RAG] Connecting to Cloud Vector DB: Pinecone (Index: '{index_name}')")
+        return PineconeVectorStore(
+            index_name=index_name,
+            embedding=embeddings,
+            pinecone_api_key=pinecone_key
+        )
+    else:
+        from langchain_chroma import Chroma
+        persist_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "chroma_db")
+        print(f"[RAG] Connecting to Local Vector DB: ChromaDB (Path: '{persist_directory}')")
+        return Chroma(
+            collection_name="research_knowledge_base",
+            embedding_function=embeddings,
+            persist_directory=persist_directory
+        )
 
 def save_to_knowledge_base(topic: str, report: str, scraped_content: str, api_key: str = None):
     """
-    Chunk and save report and raw scraped contents to the vector database.
+    Chunk and save report and raw scraped contents to the active vector database (Pinecone or Chroma).
     """
     try:
         db = get_vector_store(api_key)
@@ -65,13 +85,14 @@ def save_to_knowledge_base(topic: str, report: str, scraped_content: str, api_ke
 
         if docs:
             db.add_documents(docs)
-            print(f"[RAG] Successfully stored {len(docs)} document chunks for topic '{topic}' to knowledge base.")
+            db_type = "Pinecone" if is_pinecone_configured() else "ChromaDB"
+            print(f"[RAG] Successfully stored {len(docs)} document chunks for topic '{topic}' in {db_type}.")
     except Exception as e:
         print(f"[RAG Error] Failed to save to knowledge base: {str(e)}")
 
 def query_knowledge_base(query: str, api_key: str = None) -> str:
     """
-    Search the local vector DB for relevant matching chunks and format as context.
+    Search the active vector DB for relevant matching chunks and format as context.
     """
     try:
         db = get_vector_store(api_key)
@@ -96,4 +117,4 @@ def query_knowledge_base(query: str, api_key: str = None) -> str:
         
         return "\n".join(formatted_results)
     except Exception as e:
-        return f"Error querying local knowledge base: {str(e)}"
+        return f"Error querying knowledge base: {str(e)}"
