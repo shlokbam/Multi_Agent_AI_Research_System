@@ -253,3 +253,7 @@ python pipeline.py
     *   **Reader Agent** cleans DOMs via BeautifulSoup.
     *   **Writer Specialist** drafts a highly structured report.
     *   **Review Critic** prints a rubric score and detailed peer feedback directly to the stdout console.
+
+---
+
+Built by [Shlok Bam](https://shlokbam.in), see more projects on my portfolio.
