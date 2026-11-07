@@ -1,259 +1,84 @@
-# 🪐 ResearchOS: Collaborative Multi-Agent Research Suite
-### Deep Agentic Analysis & Factuality Synthesis Engine
+<div align="center">
 
-ResearchOS is a professional-grade multi-agent deep research and scientific synthesis suite. It employs a collaborative swarm of specialized **LangChain Agents** backed by **Mistral AI** (`mistral-small`) to conduct autonomous online investigations, scrape authoritative sources, synthesize structured reports, and audit factuality through rubric-based critical evaluation. 
+<img src=".github/assets/banner.svg" alt="ResearchOS: four agents, one report" width="100%">
 
-The entire framework is designed as an asynchronous, generator-driven state machine that communicates execution telemetry in real-time.
+<img src="https://img.shields.io/badge/live%20demo-vercel-FF5A1F?style=flat-square&labelColor=2A2926" alt="live demo: vercel">
+<img src="https://img.shields.io/badge/agents-4-FF5A1F?style=flat-square&labelColor=2A2926" alt="agents: 4">
+<img src="https://img.shields.io/badge/llm-mistral--small-F2EFE7?style=flat-square&labelColor=2A2926" alt="llm: mistral-small">
+<img src="https://img.shields.io/badge/search-Tavily-F2EFE7?style=flat-square&labelColor=2A2926" alt="search: Tavily">
+<img src="https://img.shields.io/badge/vectors-Pinecone%20%E2%86%92%20Chroma-F2EFE7?style=flat-square&labelColor=2A2926" alt="vectors: Pinecone → Chroma">
+<img src="https://img.shields.io/badge/streaming-SSE-F2EFE7?style=flat-square&labelColor=2A2926" alt="streaming: SSE">
 
----
+<a href="https://multi-agent-ai-research-system-six.vercel.app/">Live demo</a> · <a href="#in-one-minute">What it does</a> · <a href="#how-it-works">How it works</a> · <a href="#quickstart">Quickstart</a> · <a href="#design-decisions">Decisions</a> · <a href="docs/DETAILS.md">Full notes</a>
 
-## 🧠 Multi-Agent Systems Architecture
+</div>
 
-The suite operates using four distinct agentic personalities, each with customized prompt layers, specialized toolsets, and distinct cognitive boundaries.
+## In one minute
 
-```
-                  ┌────────────────────────┐
-                  │   1. Topic Submitted   │
-                  └───────────┬────────────┘
-                              ▼
-                  ┌────────────────────────┐
-                  │    2. Search Agent     │ ◄─── [Tool: Tavily Web Search]
-                  └─────┬───────────┬──────┘      [Tool: query_knowledge_base_tool]
-                        │           ▲
-                        ▼           │
-                  ┌─────────────────┴──────┐
-                  │    Vector Database     │ ◄─── (Pinecone / ChromaDB Fallback)
-                  └────────────────────────┘
-                              │
-                              ▼
-                  ┌────────────────────────┐
-                  │    3. Reader Agent     │ ◄─── [Tool: BeautifulSoup Scraper]
-                  └───────────┬────────────┘
-                              ▼
-                  ┌────────────────────────┐
-                  │  4. Writer Specialist  │ ◄─── [Cognitive Report Synthesis]
-                  └───────────┬────────────┘
-                              ▼
-                  ┌────────────────────────┐
-                  │    5. Review Critic    │ ◄─── [Rubric-Based Quality Audit]
-                  └───────────┬────────────┘
-                              │
-                              ▼ (Index Report & Sources)
-                  ┌────────────────────────┐
-                  │   6. Final Synthesis   │
-                  └────────────────────────┘
+- **Problem:** "research this for me" chatbots answer from memory, hide their sources and never check their own work.
+- **What this does:** four agents split the job. The Search agent finds sources with Tavily, the Reader scrapes the best one, the Writer drafts a report with intro, findings, conclusion and sources, and the Critic scores it out of 10 with strengths and gaps. Every step streams to the UI as it happens.
+- **Result:** a sourced report plus an honest review in one run, and each report is indexed so later questions can draw on past research.
+
+## Demo
+
+Try it live: **[multi-agent-ai-research-system-six.vercel.app](https://multi-agent-ai-research-system-six.vercel.app/)**. You can plug in your own Mistral key: `/api/validate-key` checks it, and the server uses it only for your request.
+
+## How it works
+
+```mermaid
+flowchart LR
+    T[Topic] --> S[Search agent · Tavily + knowledge base] --> R[Reader agent · BeautifulSoup]
+    R --> W[Writer · mistral-small, temp 0] --> C[Critic · score /10]
+    C --> I[(Index report · Pinecone or Chroma)]
+    S -. SSE .-> UI[React UI]
+    R -. SSE .-> UI
+    W -. SSE .-> UI
+    C -. SSE .-> UI
 ```
 
-### 1. Search Agent (`build_search_agent`)
-*   **Model Core**: `mistral-small` via LangChain's ChatMistralAI client.
-*   **Tool Binding**: `web_search` (Tavily Search API) and `query_knowledge_base_tool` (Pinecone Cloud / ChromaDB Fallback).
-*   **Cognitive Profile**: Designed to perform parallel query expansion across the local knowledge base and the live web. It interprets user research targets, structures search phrases, and gathers both historical contexts and fresh live snippets to avoid redundant research.
-*   **System Directive**: 
-    > *"Find recent, reliable and detailed information about: {topic}"*
+| Part | What it does |
+| :--- | :--- |
+| `agents.py` | The four agents: prompts, tools and model settings |
+| `tools.py` | Tavily web search, a BeautifulSoup scraper (3,000-character cap) and a knowledge-base lookup |
+| `pipeline.py` | A generator that runs the phases and yields progress events |
+| `server.py` | FastAPI: `/api/research` streams status, sources, scraped text, report and critique over SSE |
+| `rag_store.py` | Chunks finished reports (~1,000 characters) and stores them in Pinecone, or local Chroma as a fallback |
+| `frontend/` | React + Vite UI that renders the stream |
 
-### 2. Reader Agent (`build_reader_agent`)
-*   **Model Core**: `mistral-small`.
-*   **Tool Binding**: `scrape_url` (Requests + BeautifulSoup4 Parser).
-*   **Cognitive Profile**: Evaluates the output of the Search Agent, ranks the discovered URLs based on domain authority and relevance, selects the single most promising resource, and scrapes its complete raw text for deep reading.
-*   **System Directive**:
-    > *"Based on the following search results about '{topic}', pick the most relevant URL and scrape it for deeper content."*
+## Quickstart
 
-### 3. Writer Specialist (`get_writer_chain`)
-*   **Model Core**: `mistral-small` (Zero-temperature configuration for factual compliance).
-*   **Input Context**: Aggregated research results containing raw search logs and deep scraped text.
-*   **Cognitive Profile**: Structured report drafting. Synthesizes conflicting reports, normalizes content stylistic flows, outlines logical sequences, and builds deep factual sections.
-*   **System Prompt**:
-    ```
-    You are an expert research writer. Write clear, structured and insightful reports.
-    Structure the report as:
-    - Introduction
-    - Key Findings (minimum 3 well-explained points)
-    - Conclusion
-    - Sources (list all URLs found in the research)
-    Be detailed, factual and professional.
-    ```
-
-### 4. Review Critic (`get_critic_chain`)
-*   **Model Core**: `mistral-small` (Configured for high critical rigor).
-*   **Input Context**: The complete draft generated by the Writer Specialist.
-*   **Cognitive Profile**: A sharp, analytical quality auditor. It verifies report factuality, identifies narrative gaps, scores the report against an academic scale, lists strengths and improvements, and issues a final execution verdict.
-*   **System Prompt**:
-    ```
-    You are a sharp and constructive research critic. Be honest and specific.
-    Review the research report below and evaluate it strictly.
-    Respond in this exact format:
-    
-    Score: X/10
-    
-    Strengths:
-    - ...
-    - ...
-    
-    Areas to Improve:
-    - ...
-    - ...
-    
-    One line verdict:
-    ...
-    ```
-
----
-
-## ⚙️ Asynchronous Execution Pipeline
-
-The orchestration is governed by `pipeline.py` using a stateful generator pattern (`run_research_pipeline_generator`). This enables live streaming of tool invocation progress, intermediate results, and final synthesized outputs.
-
-### State Transitions & Context Accumulation
-
-The pipeline maintains a thread-safe `state` dictionary representing the cumulative collective memory of the agents:
-
-1.  **Phase 1: Search Invocation**
-    *   The `Search Agent` runs `web_search(query)`.
-    *   Extracts titles, URLs, and snippets of top 5 results.
-    *   Saves content to `state["search_results"]`.
-2.  **Phase 2: Deep Scraping**
-    *   The `Reader Agent` evaluates `state["search_results"]`.
-    *   Funnels the best target URL into `scrape_url(url)`.
-    *   Cleans DOM boilerplate, navigates script/style tags, and saves raw text to `state["scraped_content"]` (up to 3,000 characters).
-3.  **Phase 3: Synthesis & Report Drafting**
-    *   Combines `state["search_results"]` and `state["scraped_content"]` into a master context block.
-    *   Invokes the `Writer Specialist` to construct the multi-section paper.
-    *   Saves draft to `state["report"]`.
-4.  **Phase 4: Factuality Review & Auditing**
-    *   Invokes the `Review Critic` on `state["report"]`.
-    *   Parses qualitative critique and strict quality scoring.
-    *   Saves feedback to `state["feedback"]`.
-5.  **Phase 5: Knowledge Base Indexing (RAG)**
-    *   Upon successful compilation and review of the research paper, the pipeline automatically ingests the final report and raw scraped data.
-    *   Uses `RecursiveCharacterTextSplitter` to chunk the text into overlapping segments of ~1000 characters.
-    *   Embeds chunks using `MistralAIEmbeddings` and registers them into a local `Chroma` database for historical query availability.
-
----
-
-## 🛠️ Tool System Specifications (`tools.py`)
-
-To shield the agents from noisy raw markup, specialized tools perform extensive sanitization:
-
-### 🔍 Web Search Tool (`web_search`)
-*   **API Provider**: **Tavily Client**.
-*   **Extraction Schema**: Restricts return values to five high-quality targets. Combines titles, URLs, and normalized 300-character content snippets:
-    ```python
-    @tool
-    def web_search(query: str) -> str:
-        """Search the web for recent and reliable information on a topic."""
-        # Queries Tavily Parallel Indexer...
-    ```
-
-### 📄 BeautifulSoup Scraper Tool (`scrape_url`)
-*   **Methodology**: Executes HTTP `GET` with spoofed browser headers (`Mozilla/5.0`) and tight request timeouts (8s).
-*   **DOM Sanitization**: Decomposes `<script>`, `<style>`, `<nav>`, and `<footer>` nodes to prevent token bloat. Retains the top 3,000 characters of clean structural text.
-    ```python
-    @tool
-    def scrape_url(url: str) -> str:
-        """Scrape and return clean text content from a given URL."""
-        # Cleans boilerplate and normalizes whitespace...
-    ```
-
-### 📂 Knowledge Base Tool (`query_knowledge_base_tool`)
-*   **Vector Database**: **Pinecone Cloud** index (Production default) with automated local fallback to **ChromaDB** in `./data/chroma_db`.
-*   **Embeddings Engine**: `MistralAIEmbeddings` utilizing the `mistral-embed` model.
-*   **Context Scope**: Searches historically saved research drafts and raw scraped content using cosine similarity. Returns the top 4 most relevant text segments containing metadata (topic, type, timestamp).
-    ```python
-    @tool
-    def query_knowledge_base_tool(query: str) -> str:
-        """Search the local knowledge base of past research reports for relevant information."""
-        # Semantically matches historical context...
-    ```
-
----
-
-## 📡 Real-Time Telemetry & SSE Streaming (`server.py`)
-
-A high-performance **FastAPI** ASGI server exposes a Server-Sent Events (SSE) streaming endpoint (`/api/research`). This streams execution telemetry packages in real-time as the agents work:
-
-*   **Heartbeat Event**: Keep-alive ping to maintain active socket connection.
-*   **Status Event**: Informs the subscriber of agent shifts (e.g. `Search agent is working...`, `Critic is reviewing the report...`).
-*   **Search Results Event**: Streams structured parallel search logs immediately upon retrieval.
-*   **Scraped Content Event**: Streams sanitized main page text immediately after BeautifulSoup parsing.
-*   **Report Event**: Streams the complete factual markdown draft.
-*   **Feedback Event**: Streams the academic score and critique card.
-
----
-
-## 🚀 Installation & Command-Line Execution
-
-Follow these steps to run the complete multi-agent pipeline directly inside your command line:
-
-### 📂 Directory Structure Tree
-```
-Multi_Agent_AI_Research_System/
-├── server.py              # FastAPI Web SSE Telemetry Server
-├── pipeline.py            # Stateful Coordination Pipeline Engine
-├── rag_store.py           # RAG Vector Store Ingestion & Query Operations
-├── agents.py              # Agent Prompts, Chains, & Configurations
-├── tools.py               # Tavily search, BeautifulSoup, & Knowledge Base tools
-├── requirements.txt       # Unified Python backend dependencies
-├── .env                   # Local credentials and API keys (Untracked)
-├── .python-version        # Specifies Python version (3.13.2) for deployment compatibility
-├── data/
-│   └── chroma_db/         # Local ChromaDB vector database directory (fallback)
-└── .gitignore             # Root-level ignore rules for security
-```
-
-### 1. Initialize Python Environment
-1. Navigate to the project root directory:
-   ```bash
-   cd Multi_Agent_AI_Research_System
-   ```
-2. Build a localized virtual environment:
-   ```bash
-   python3 -m venv .venv
-   ```
-3. Activate the virtual environment:
-   *   **macOS / Linux**:
-       ```bash
-       source .venv/bin/activate
-       ```
-   *   **Windows**:
-       ```bash
-       .venv\Scripts\activate
-       ```
-4. Install backend dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### 2. Configure Local Credentials
-Create a `.env` file in the root directory to store your API keys and configuration parameters:
-```env
-MISTRAL_API_KEY="your_mistral_api_key"
-TAVILY_API_KEY="your_tavily_api_key"
-
-# LangSmith Observability (Optional)
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
-LANGCHAIN_API_KEY="your_langsmith_api_key"
-LANGCHAIN_PROJECT="multi-agent-research-system"
-
-# Pinecone Cloud Vector DB (Optional - Falls back to local ChromaDB if omitted)
-PINECONE_API_KEY="your_pinecone_api_key"
-PINECONE_INDEX_NAME="research-knowledge-base"
-```
-*(Note: `.env` is fully ignored by Git to secure your keys from public repositories.)*
-
-### 3. Dry-Run the Multi-Agent Pipeline on Terminal
-You can run the multi-agent execution pipeline directly as a localized console utility:
 ```bash
-python pipeline.py
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# .env
+MISTRAL_API_KEY=...
+TAVILY_API_KEY=...
+# optional: PINECONE_API_KEY, PINECONE_INDEX_NAME, LANGCHAIN_API_KEY (LangSmith tracing)
+
+python pipeline.py                         # run in the terminal
+uvicorn server:app --reload --port 8000    # or serve the API
+cd frontend && npm install && npm run dev  # and the UI
 ```
-**Interactive Prompt**:
-1. Enter your research topic when prompted (e.g., `Advances in Fusion Reactor Core Containment`).
-2. Watch the live telemetry logs stream in your terminal as:
-    *   **Search Agent** discovers sources and queries Tavily.
-    *   **Reader Agent** cleans DOMs via BeautifulSoup.
-    *   **Writer Specialist** drafts a highly structured report.
-    *   **Review Critic** prints a rubric score and detailed peer feedback directly to the stdout console.
+
+## Design decisions
+
+- **Specialists over one big prompt.** Each agent has one job and only the tools it needs, so a failure points at a single step.
+- **Stream everything.** A generator pipeline plus SSE means the user watches sources arrive instead of waiting a minute for a wall of text.
+- **Graceful storage fallback.** Pinecone when a key is set, local Chroma when not, so the project runs anywhere.
+
+## Limits & roadmap
+
+- [ ] The Critic scores the report but its feedback isn't sent back to the Writer yet; a revise loop is the next step
+- [ ] The Reader scrapes only the single best URL; reading the top 3 would ground reports better
+- [ ] Add an eval set to measure source accuracy instead of relying on the Critic's score
 
 ---
 
-Built by [Shlok Bam](https://shlokbam.in), see more projects on my portfolio.
+<div align="center">
+
+<a href="https://shlokbam.in"><img src=".github/assets/footer.svg" alt="Built by Shlok Bam" width="100%"></a>
+
+<a href="https://shlokbam.in">shlokbam.in</a> · <a href="https://www.linkedin.com/in/shlokbam/">LinkedIn</a> · <a href="https://github.com/shlokbam">More projects</a>
+
+</div>
